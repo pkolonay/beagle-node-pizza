@@ -10,15 +10,18 @@ var constants = require('constants');
 var tempNow;
 
 var readInterval = 1000; // read input interval
-var saveInterval = 60000 * 30; // save reading to file
-var file = path.join(process.cwd(), '/.temps');
+
+// Save reading every 10 minutes
+var saveInterval = 60000 * 10; // save reading to file
+// Write temperature readings to this file
+var tempLogFile = path.join(process.cwd(), '/.temps');
 
 var temp_f;
 var temp_c;
 var mvInputAin1;
 
-var certFile = fs.readFileSync('certificates/testproxyclient.crt');
-var keyFile = fs.readFileSync('certificates/testproxyclient.key');
+//var certFile = fs.readFileSync('certificates/testproxyclient.crt');
+//var keyFile = fs.readFileSync('certificates/testproxyclient.key');
 
 var vm_info = {
   host: 'qvoiceanalytics.honeywell.com',
@@ -35,26 +38,26 @@ var platform = b.getPlatform((x) => {
     return x;
 } );
 
-function post (event, vm_info, posthandler) {
-  var URL = 'https://' + vm_info.host + ':' + vm_info.port + '/data/' + vm_info.customerId;
-  console.log('Sending message to ' + URL);
-  console.log('Message = ' + JSON.stringify(event));
-  request.post(
-    URL,
-    {   form: { event: JSON.stringify(event) },
-        strictSSL: true,
-        agentOptions: {
-            secureProtocol: 'SSLv23_method',
-            secureOptions: constants.SSL_OP_NO_SSLv3,
-            cert: certFile,
-            key: keyFile,
-        }
-    },
-    function (error, response, body) {
-      posthandler(error, response, event, body);
-    }
-  );
-};
+//function post (event, vm_info, posthandler) {
+//  var URL = 'https://' + vm_info.host + ':' + vm_info.port + '/data/' + vm_info.customerId;
+//  console.log('Sending message to ' + URL);
+//  console.log('Message = ' + JSON.stringify(event));
+//  request.post(
+//    URL,
+//    {   form: { event: JSON.stringify(event) },
+//        strictSSL: true,
+//        agentOptions: {
+//            secureProtocol: 'SSLv23_method',
+//            secureOptions: constants.SSL_OP_NO_SSLv3,
+//            cert: certFile,
+//            key: keyFile,
+//        }
+//    },
+//    function (error, response, body) {
+//      posthandler(error, response, event, body);
+//    }
+//  );
+//};
 
 // Read the analog input pin based on the read interval
 function readLoop () {         //  create a loop function
@@ -81,29 +84,32 @@ function printStatus(x) {
 
 	tempNow = temp_f + " degrees F";
 	console.log(dt + " " + temp_f);
-	storeReading(file, {'time': ts_hms, 'temperature_f': temp_f});
+	//storeReading(tempLogFile, {'time': ts_hms, 'temperature_f': temp_f});
+	storeReading(tempLogFile, ts_hms + " " + "temp = " + temp_f);
 }
 
 setInterval(printStatus, saveInterval);
 
-function storeReading(file, data) {
+function storeReading(tempLogFile, data) {
+        console.log(data)
 	fileStream.write(data+"\n", 'utf8', function(err) {
 		if (err) throw err;
 		console.log('Saved.');
 	});
-        messageObject = {'messages':[{'customerId':'kolonay','time':new Date(),'deviceName':platform.bonescript,'message':data,'site':{'id':'-1','name':'Default','timezone':'America/New_York'}}]};
-	post(messageObject,vm_info,function(err,res, body) {
-          if(err) {
-            console.log('sumtin wong');
-            console.log(err);
-          } else {
-            console.log(body);
-          }
-       }); 
+// This was for the days when Operation Acuity was the endpoint
+//        messageObject = {'messages':[{'customerId':'kolonay','time':new Date(),'deviceName':platform.bonescript,'message':data,'site':{'id':'-1','name':'Default','timezone':'America/New_York'}}]};
+//	post(messageObject,vm_info,function(err,res, body) {
+//          if(err) {
+//            console.log('sumtin wong');
+//            console.log(err);
+//          } else {
+//            console.log(body);
+//          }
+//       }); 
 }
 
 
-var fileStream = fs.createWriteStream(file, {flags:'a', encoding:'utf8'});
+var fileStream = fs.createWriteStream(tempLogFile, {flags:'a', encoding:'utf8'});
 fileStream.on('open', function() {readLoop();});
 
 
